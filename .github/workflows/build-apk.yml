@@ -1,0 +1,64 @@
+name: Build Popcorn Time Android APK
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+
+jobs:
+  build:
+    name: Build ARM Android APK
+    runs-on: ubuntu-22.04
+    timeout-minutes: 45
+
+    steps:
+      - name: Install Android SDK 29
+        shell: bash
+        run: |
+          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses >/dev/null || true
+          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" \
+            "platform-tools" \
+            "platforms;android-29" \
+            "build-tools;29.0.3"
+
+      - name: Use Java 8 for the old Gradle project
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '8'
+
+      - name: Download Popcorn Time Android source
+        shell: bash
+        run: |
+          git config --global url."https://github.com/".insteadOf "git@github.com:"
+          git clone --branch development --depth 1 https://github.com/popcorn-time-ru/popcorn-android.git source
+          cd source
+          git submodule sync --recursive
+          git submodule update --init --recursive
+
+      - name: Build ARM debug APK
+        working-directory: source
+        env:
+          BUILD_NUMBER: '1'
+          S_ALIAS: dummy
+          S_KEYPASS: dummy
+          S_KEYSTORE: ''
+        shell: bash
+        run: |
+          chmod +x gradlew
+          ./gradlew --no-daemon :mobile:assembleArmDebug --stacktrace
+
+      - name: Show generated APK files
+        if: always()
+        shell: bash
+        run: |
+          find source -type f -name '*.apk' -print 2>/dev/null || true
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: popcorn-time-android-arm-apk
+          path: source/mobile/build/outputs/apk/**/*.apk
+          if-no-files-found: error
+          retention-days: 7
