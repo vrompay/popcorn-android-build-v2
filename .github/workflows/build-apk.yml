@@ -17,7 +17,10 @@ jobs:
         shell: bash
         run: |
           yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses >/dev/null || true
-          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"             "platform-tools"             "platforms;android-29"             "build-tools;29.0.3"
+          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" \
+            "platform-tools" \
+            "platforms;android-29" \
+            "build-tools;29.0.3"
 
       - name: Use Java 8 for the old Gradle project
         uses: actions/setup-java@v4
@@ -38,21 +41,39 @@ jobs:
         working-directory: source
         shell: bash
         run: |
-          find . -type f -name '*.gradle' -print0 |             xargs -0 sed -i "/guardian\.github\.com\/maven\/repo-releases/d"
+          find . -type f -name '*.gradle' -print0 | \
+            xargs -0 sed -i "/guardian\.github\.com\/maven\/repo-releases/d"
 
-          find . -type f -name '*.gradle' -print0 |             xargs -0 sed -i "/com\.github\.ben-manes:gradle-versions-plugin:0\.17\.0/d"
+          find . -type f -name '*.gradle' -print0 | \
+            xargs -0 sed -i "/com\.github\.ben-manes:gradle-versions-plugin:0\.17\.0/d"
 
-          find . -type f -name '*.gradle' -print0 |             xargs -0 sed -i "/apply plugin: 'com\.github\.ben-manes\.versions'/d"
+          find . -type f -name '*.gradle' -print0 | \
+            xargs -0 sed -i "/apply plugin: 'com\.github\.ben-manes\.versions'/d"
 
-          sed -i             "s/com\.github\.guardian:Option:-SNAPSHOT/com.github.guardian:Option:e933c3a31d/g"             mobile/build.gradle
+          sed -i \
+            "s/com\.github\.guardian:Option:-SNAPSHOT/com.github.guardian:Option:e933c3a31d/g" \
+            mobile/build.gradle
+
+      - name: Create temporary signing keystore
+        shell: bash
+        run: |
+          keytool -genkeypair \
+            -keystore /tmp/popcorn-dummy.jks \
+            -storepass dummy123 \
+            -keypass dummy123 \
+            -alias dummy \
+            -keyalg RSA \
+            -keysize 2048 \
+            -validity 10000 \
+            -dname "CN=Popcorn Time Debug, OU=Build, O=Local, L=Brussels, C=BE"
 
       - name: Build ARM debug APK
         working-directory: source
         env:
-          BUILD_NUMBER: '2'
+          BUILD_NUMBER: '3'
           S_ALIAS: dummy
-          S_KEYPASS: dummy
-          S_KEYSTORE: ''
+          S_KEYPASS: dummy123
+          S_KEYSTORE: /tmp/popcorn-dummy.jks
         shell: bash
         run: |
           chmod +x gradlew
