@@ -13,7 +13,7 @@ jobs:
     timeout-minutes: 45
 
     steps:
-      - name: Install Android SDK 29
+      - name: Install Android SDK
         shell: bash
         run: |
           yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses >/dev/null || true
@@ -34,6 +34,66 @@ jobs:
           git config --global url."https://github.com/".insteadOf "git@github.com:"
           git clone --branch development --depth 1 https://github.com/popcorn-time-ru/popcorn-android.git source
           cd source
+          git submodule sync --recursive
+          git submodule update --init --recursive
+
+      - name: Patch obsolete dependencies and repositories
+        working-directory: source
+        shell: bash
+        run: |
+          # The old Guardian Maven repository no longer resolves.
+          # Remove it everywhere in the Gradle files.
+          find . -type f -name '*.gradle' -print0 | \
+            xargs -0 sed -i "/guardian\.github\.com\/maven\/repo-releases/d"
+
+          # The Gradle Versions plugin is only used for checking dependency
+          # updates and is not required to build the APK. Removing it avoids
+          # another obsolete build-time dependency.
+          find . -type f -name '*.gradle' -print0 | \
+            xargs -0 sed -i "/com\.github\.ben-manes:gradle-versions-plugin:0\.17\.0/d"
+
+          find . -type f -name '*.gradle' -print0 | \
+            xargs -0 sed -i "/apply plugin: 'com\.github\.ben-manes\.versions'/d"
+
+          # Guardian Option used to be served from the dead Guardian Maven repo.
+          # Pin it to a known commit that JitPack can build.
+          sed -i \
+            "s/com\.github\.guardian:Option:-SNAPSHOT/com.github.guardian:Option:e933c3a31d/g" \
+            mobile/build.gradle
+
+          echo "Remaining obsolete Guardian repository references:"
+          grep -R "guardian.github.com/maven/repo-releases" . \
+            --include='*.gradle' || true
+
+          echo "Remaining Gradle Versions plugin references:"
+          grep -R "com.github.ben-manes.versions" . \
+            --include='*.gradle' || true
+
+      - name: Build ARM debug APK
+        working-directory: source
+        env:
+          BUILD_NUMBER: '2'
+          S_ALIAS: dummy
+          S_KEYPASS: dummy
+          S_KEYSTORE: ''
+        shell: bash
+        run: |
+          chmod +x gradlew
+          ./gradlew --no-daemon :mobile:assembleArmDebug --stacktrace
+
+      - name: Show generated APK files
+        if: always()
+        shell: bash
+        run: |
+          find source -type f -name '*.apk' -print 2>/dev/null || true
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: popcorn-time-android-arm-apk
+          path: source/mobile/build/outputs/apk/**/*.apk
+          if-no-files-found: error
+          retention-days: 7
           git submodule sync --recursive
           git submodule update --init --recursive
 
