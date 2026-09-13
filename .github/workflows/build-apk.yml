@@ -23,7 +23,7 @@ jobs:
             "build-tools;29.0.3"
 
       - name: Use Java 8 for the old Gradle project
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: '8'
@@ -53,7 +53,11 @@ jobs:
           sed -i \
             "s/com\.github\.guardian:Option:-SNAPSHOT/com.github.guardian:Option:e933c3a31d/g" \
             mobile/build.gradle
-
+            
+          sed -i \
+            "s/de\.timroes:aXMLRPC:1\.8\.1/fr.turri:aXMLRPC:1.8.3/g" \
+            base/build.gradle
+            
       - name: Create temporary signing keystore
         shell: bash
         run: |
