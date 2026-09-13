@@ -77,7 +77,10 @@ jobs:
         shell: bash
         run: |
           chmod +x gradlew
-          ./gradlew --no-daemon :mobile:assembleArmDebug --stacktrace
+          set +e
+          ./gradlew --no-daemon :mobile:assembleArmDebug --stacktrace --info 2>&1 | tee "$GITHUB_WORKSPACE/gradle-build.log"
+          status=${PIPESTATUS[0]}
+          exit "$status"
 
       - name: Show generated APK files
         if: always()
