@@ -57,6 +57,10 @@ jobs:
           sed -i \
             "s/de\.timroes:aXMLRPC:1\.8\.1/fr.turri:aXMLRPC:1.8.3/g" \
             base/build.gradle
+
+          sed -i \
+            "s/com\.nimbusds:srp6a-android:2\.0\.2/com.nimbusds:srp6a:2.1.0/g" \
+            connectsdk/build.gradle
             
       - name: Create temporary signing keystore
         shell: bash
